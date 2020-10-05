@@ -86,7 +86,7 @@ try:
             # Q(S, A) <- Q(S, A) + alpha[R + gamma * max_a(Q(S', a)) - Q(S, A)]
             q_table[tuple(state_i)][action] = old_q_val + alpha * (reward + gamma * next_max - old_q_val)
             # S <- S'
-            state = next_state_i
+            state_i = next_state_i
 
             step_cnt += 1
 
