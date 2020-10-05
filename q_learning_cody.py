@@ -7,9 +7,9 @@ import matplotlib.pyplot as plt
 import time
 
 # X Pos, Y Pos, X Vel, Y Vel, Angle, Angular Vel, Leg 1, Leg 2
-MIN_VALS = [-2, -1, -2, -4, -math.pi / 2, -5, 0, 0] # TODO: determine realistic min/max values
-MAX_VALS = [2, 2, 2, 2, math.pi / 2, 5, 1, 1]
-NUM_BINS = [13, 13, 13, 15, 15, 2, 2, 2] # TODO: decide on how many bins for each value
+MIN_VALS = [-2, -1, -2, -4, -math.pi / 2, -2, 0, 0] # TODO: determine realistic min/max values
+MAX_VALS = [2, 2, 2, 2, math.pi / 2, 2, 1, 1]
+NUM_BINS = [11, 11, 11, 11, 11, 11, 2, 2] # TODO: decide on how many bins for each value
 
 to_indices_time = 0
 
@@ -52,21 +52,21 @@ try:
     total = 0
     for i in range(NUM_EPS):
         # Initialize S
-        # state = env.reset()
-        state = state_to_table_indices(env.reset())
+        state_i = state_to_table_indices(env.reset())
         total_reward = 0
         step_cnt = 0
         done = False
+        rewards = []
 
         # Loop for each step of episode
         while not done:
             # env.render() # Un-comment to render lander graphics
+
             # Choose A from S using policy derived from Q
             if np.random.uniform() < epsilon:
                 action = env.action_space.sample()
             else:
-                # action = np.argmax(q_table[tuple(state_to_table_indices(state))])
-                action = np.argmax(q_table[tuple(state)])
+                action = np.argmax(q_table[tuple(state_i)])
 
             # for n, value in enumerate(state):
             #     if (value == 0 or value == NUM_BINS[n] - 1) and n < 6:
@@ -74,27 +74,26 @@ try:
 
             # Take action A, observe R, S'
             next_state, reward, done, info = env.step(action)
+
             total_reward += reward
+            next_state_i = state_to_table_indices(next_state)
 
             # Q(S, A)
-            # old_q_val = q_table[tuple(state_to_table_indices(state) + [action])]
-            old_q_val = q_table[tuple(state + [action])]
+            old_q_val = q_table[tuple(state_i)][action]
             # max_a(Q(S', a))
-            # next_max = np.max(q_table[tuple(state_to_table_indices(next_state))])
-            next_max = np.max(q_table[tuple(state)])
+            next_max = np.max(q_table[tuple(next_state_i)])
 
             # Q(S, A) <- Q(S, A) + alpha[R + gamma * max_a(Q(S', a)) - Q(S, A)]
-            new_q_val = old_q_val + alpha * (reward + gamma * next_max - old_q_val)
-            # q_table[tuple(state_to_table_indices(state) + [action])] = new_q_val
-            q_table[tuple(state + [action])] = new_q_val
+            q_table[tuple(state_i)][action] = old_q_val + alpha * (reward + gamma * next_max - old_q_val)
             # S <- S'
-            # state = next_state
-            state = state_to_table_indices(next_state)
+            state = next_state_i
+
             step_cnt += 1
 
         steps.append(step_cnt)
         ep_rewards.append(total_reward)
         total += total_reward
+
         if i % 100 == 0:
             if i != 0:
                 print("Average total reward Ep. {}-{}: {}".format(i - 99, i, total / 100))
