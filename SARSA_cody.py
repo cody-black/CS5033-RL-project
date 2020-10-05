@@ -7,8 +7,8 @@ import matplotlib.pyplot as plt
 import time
 
 # X Pos, Y Pos, X Vel, Y Vel, Angle, Angular Vel, Leg 1, Leg 2
-MIN_VALS = [-2, -1, -2, -4, -math.pi / 2, -5, 0, 0] # TODO: determine realistic min/max values
-MAX_VALS = [2, 2, 2, 2, math.pi / 2, 5, 1, 1]
+MIN_VALS = [-2, -1, -2, -4, -math.pi / 2, -2, 0, 0] # TODO: determine realistic min/max values
+MAX_VALS = [2, 2, 2, 2, math.pi / 2, 2, 1, 1]
 NUM_BINS = [11, 11, 11, 11, 11, 11, 2, 2] # TODO: decide on how many bins for each value
 
 to_indices_time = 0
@@ -29,12 +29,12 @@ def state_to_table_indices(s):
     to_indices_time += end - start
     return indices
 
-NUM_EPS = 1000000000
+NUM_EPS = 10000
 
 env = gym.make('LunarLander-v2')
 
 q_table = np.zeros(NUM_BINS + [env.action_space.n])
-# q_table = np.load("q_table2.npy") # Un-comment to load q table from file
+# q_table = np.load("q_table_sarsa.npy") # Un-comment to load q table from file
 
 # TODO: what should these values be?
 epsilon = 0.1
@@ -44,12 +44,14 @@ gamma = 0.6
 ep_rewards = []
 avg_rewards = []
 steps = []
+success_percent = []
 
 learn_start = time.time()
 # SARASA algorithm from RL book (6.4, page 130)
 # Loop for each episode
 try:
     total = 0
+    successes = 0
     for i in range(NUM_EPS):
         # Initialize S
         state_i = state_to_table_indices(env.reset())
@@ -74,6 +76,9 @@ try:
 
             # Take action A, observe R, S'
             next_state, reward, done, info = env.step(action)
+
+            if reward == 100:
+                successes += 1
 
             total_reward += reward
             next_state_i = state_to_table_indices(next_state)
@@ -103,26 +108,30 @@ try:
         total += total_reward
         if i % 100 == 0:
             if i != 0:
-                print("Average total reward Ep. {}-{}: {}".format(i - 99, i, total / 100))
+                print("Avg. total reward Ep. {}-{}: {:.4f} | Successful landings: {}%".format(i - 99, i, total / 100, successes))
                 avg_rewards.append(total / 100)
-            # print("Episode {} total reward: {}".format(i, total_reward))
-            total = 0
+                success_percent.append(successes)
+                total = 0
+                successes = 0
 except KeyboardInterrupt: # Press CTRL+C in the terminal to stop
     pass # TODO: read in keyboard commands?
 
 learn_stop = time.time()
 learn_time = learn_stop - learn_start
-np.save("q_table", q_table)
+np.save("q_table_sarsa", q_table)
 print("Total episodes: {} | Total time (s): {}".format(i, learn_time))
-print("Percent of q_table entries != 0: {}".format(100 * np.count_nonzero(q_table) / q_table.size))
+print("q_table entries != 0: {}%".format(100 * np.count_nonzero(q_table) / q_table.size))
 print("Steps (min, avg, max): {}, {}, {}".format(min(steps), mean(steps), max(steps)))
 print("Avg time: {}/step, {}/episode".format(learn_time / sum(steps), learn_time / i))
 print("Avg time converting to indices: {}/step, {}/episode".format(to_indices_time/sum(steps), to_indices_time/i))
-fig, axes = plt.subplots(nrows=2, ncols=1)
+fig, axes = plt.subplots(nrows=3, ncols=1)
 axes[0].plot(ep_rewards)
 axes[0].set_xlabel('Episode')
 axes[0].set_ylabel('Total Reward')
-axes[1].plot(avg_rewards)
+axes[1].plot(np.arange(100, i, 100), avg_rewards)
 axes[1].set_xlabel('Episode')
 axes[1].set_ylabel('Avg Total Reward')
+axes[2].plot(np.arange(100, i, 100), success_percent)
+axes[2].set_xlabel('Episode')
+axes[2].set_ylabel('% successful landings')
 plt.show()
