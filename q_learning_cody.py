@@ -29,12 +29,14 @@ def state_to_table_indices(s):
     to_indices_time += end - start
     return indices
 
-NUM_EPS = 10000
+NUM_EPS = 5000
 
-env = gym.make('LunarLander-v2')
+ENV_TYPE = "LunarLanderRandomZone"
+
+env = gym.make('{}-v2'.format(ENV_TYPE))
 
 q_table = np.zeros(NUM_BINS + [env.action_space.n])
-# q_table = np.load("q_table_q_learning.npy") # Un-comment to load q table from file
+# q_table = np.load("Q-learning/{}/q_table.npy".format(ENV_TYPE)) # Un-comment to load q table from file
 
 # TODO: what should these values be?
 epsilon = 0.1
@@ -45,20 +47,23 @@ ep_rewards = []
 avg_rewards = []
 steps = []
 success_percent = []
+successes = []
+final_pos = []
 
 learn_start = time.time()
 # Q-learning algorithm from RL book (6.5, page 131)
 # Loop for each episode
 try:
     total = 0
-    successes = 0
+    success_count = 0
     for i in range(NUM_EPS):
         # Initialize S
         state_i = state_to_table_indices(env.reset())
+        
         total_reward = 0
-        step_cnt = 0
+        step_count = 0
+        success = False
         done = False
-        rewards = []
 
         # Loop for each step of episode
         while not done:
@@ -78,7 +83,8 @@ try:
             next_state, reward, done, info = env.step(action)
 
             if reward == 100:
-                successes += 1
+                success = True
+                success_count += 1
 
             total_reward += reward
             next_state_i = state_to_table_indices(next_state)
@@ -93,25 +99,30 @@ try:
             # S <- S'
             state_i = next_state_i
 
-            step_cnt += 1
+            step_count += 1
 
-        steps.append(step_cnt)
+        final_pos.append((next_state[0], next_state[1]))
+        successes.append(success)
+        steps.append(step_count)
         ep_rewards.append(total_reward)
         total += total_reward
-
         if i % 100 == 0:
             if i != 0:
-                print("Avg. total reward Ep. {}-{}: {:.4f} | Successful landings: {}%".format(i - 99, i, total / 100, successes))
+                print("Avg. total reward Ep. {}-{}: {:.4f} | Successful landings: {}%".format(i - 99, i, total / 100, success_count))
                 avg_rewards.append(total / 100)
-                success_percent.append(successes)
+                success_percent.append(success_count)
                 total = 0
-                successes = 0
+                success_count = 0
 except KeyboardInterrupt: # Press CTRL+C in the terminal to stop
     pass # TODO: read in keyboard commands?
 
 learn_stop = time.time()
 learn_time = learn_stop - learn_start
-np.save("q_table_q_learning", q_table)
+np.save("Q-learning/{}/q_table".format(ENV_TYPE), q_table)
+np.save("Q-learning/{}/num_steps".format(ENV_TYPE), steps)
+np.save("Q-learning/{}/rewards".format(ENV_TYPE), ep_rewards)
+np.save("Q-learning/{}/successes".format(ENV_TYPE), successes)
+np.save("Q-learning/{}/final_pos".format(ENV_TYPE), final_pos)
 print("Total episodes: {} | Total time (s): {}".format(i, learn_time))
 print("q_table entries != 0: {}%".format(100 * np.count_nonzero(q_table) / q_table.size))
 print("Steps (min, avg, max): {}, {}, {}".format(min(steps), mean(steps), max(steps)))
