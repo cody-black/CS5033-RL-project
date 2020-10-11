@@ -1,20 +1,16 @@
-import gym
+import lunar_lander
 import numpy as np
 import math
 from statistics import mean
-import matplotlib
-import matplotlib.pyplot as plt
 import time
+import os
 
 # X Pos, Y Pos, X Vel, Y Vel, Angle, Angular Vel, Leg 1, Leg 2
 MIN_VALS = [-2, -1, -2, -4, -math.pi / 2, -2, 0, 0] # TODO: determine realistic min/max values
 MAX_VALS = [2, 2, 2, 2, math.pi / 2, 2, 1, 1]
 NUM_BINS = [11, 11, 11, 11, 11, 11, 2, 2] # TODO: decide on how many bins for each value
 
-to_indices_time = 0
-
 def state_to_table_indices(s):
-    start = time.time()
     indices = []
     for value, min_val, max_val, bins in zip(s, MIN_VALS, MAX_VALS, NUM_BINS):
         if value >= max_val:
@@ -24,24 +20,26 @@ def state_to_table_indices(s):
         else:
             index = int(((value - min_val) * bins) // (max_val - min_val))
         indices.append(index)
-    end = time.time()
-    global to_indices_time
-    to_indices_time += end - start
     return indices
 
+# Number of episodes to run before stopping
 NUM_EPS = 5000
 
-ENV_TYPE = "LunarLanderRandomZone"
+# Which Lunar Lander environment to run
+# Options are "LunarLander", "LunarLanderMoreRandStart", "LunarLanderMovingZone", "LunarLanderRandomZone", "LunarLanderLimitedFuel"
+ENV_NAME = "LunarLanderRandomZone"
 
-env = gym.make('{}-v2'.format(ENV_TYPE))
+env = getattr(lunar_lander, ENV_NAME)()
 
+# Initialize q-table with a value of 0 for each (state, action) pair
 q_table = np.zeros(NUM_BINS + [env.action_space.n])
-# q_table = np.load("Q-learning/{}/q_table.npy".format(ENV_TYPE)) # Un-comment to load q table from file
 
-# TODO: what should these values be?
-epsilon = 0.1
+# Un-comment line below to load q-table from file instead
+# q_table = np.load("Q-learning/{}/q_table.npy".format(ENV_NAME))
+
 alpha = 0.1
 gamma = 0.6
+epsilon = 0.1
 
 ep_rewards = []
 avg_rewards = []
@@ -50,12 +48,14 @@ success_percent = []
 successes = []
 final_pos = []
 
+# Start timer
 learn_start = time.time()
+
 # Q-learning algorithm from RL book (6.5, page 131)
-# Loop for each episode
 try:
     total = 0
     success_count = 0
+    # Loop for each episode
     for i in range(NUM_EPS):
         # Initialize S
         state_i = state_to_table_indices(env.reset())
@@ -75,13 +75,10 @@ try:
             else:
                 action = np.argmax(q_table[tuple(state_i)])
 
-            # for n, value in enumerate(state):
-            #     if (value == 0 or value == NUM_BINS[n] - 1) and n < 6:
-            #         print("{} | {}".format(n, state))
-
             # Take action A, observe R, S'
             next_state, reward, done, info = env.step(action)
 
+            # Reward is exactly 100 when lander makes successful landing
             if reward == 100:
                 success = True
                 success_count += 1
@@ -106,37 +103,35 @@ try:
         steps.append(step_count)
         ep_rewards.append(total_reward)
         total += total_reward
+
+        # Every 100 episodes, print stats for previous 100 episodes
         if i % 100 == 0:
             if i != 0:
-                print("Avg. total reward Ep. {}-{}: {:.4f} | Successful landings: {}%".format(i - 99, i, total / 100, success_count))
+                print("Episodes {}-{} | Avg. total reward: {:.2f} | Successes: {:.2f}%".format(i - 99, i, total / 100, success_count))
                 avg_rewards.append(total / 100)
                 success_percent.append(success_count)
                 total = 0
                 success_count = 0
-except KeyboardInterrupt: # Press CTRL+C in the terminal to stop
-    pass # TODO: read in keyboard commands?
+except KeyboardInterrupt: # Press CTRL+C in the terminal to stop early
+    pass
 
+# Stop timer and calculate elapsed time
 learn_stop = time.time()
 learn_time = learn_stop - learn_start
-np.save("Q-learning/{}/q_table".format(ENV_TYPE), q_table)
-np.save("Q-learning/{}/num_steps".format(ENV_TYPE), steps)
-np.save("Q-learning/{}/rewards".format(ENV_TYPE), ep_rewards)
-np.save("Q-learning/{}/successes".format(ENV_TYPE), successes)
-np.save("Q-learning/{}/final_pos".format(ENV_TYPE), final_pos)
-print("Total episodes: {} | Total time (s): {}".format(i, learn_time))
+
+# Create directory to store data if it doesn't already exist
+if not os.path.exists("Q-learning/{}".format(ENV_NAME)):
+    os.makedirs("Q-learning/{}".format(ENV_NAME))
+
+# Save data for processing later
+np.save("Q-learning/{}/q_table".format(ENV_NAME), q_table)
+np.save("Q-learning/{}/num_steps".format(ENV_NAME), steps)
+np.save("Q-learning/{}/rewards".format(ENV_NAME), ep_rewards)
+np.save("Q-learning/{}/successes".format(ENV_NAME), successes)
+np.save("Q-learning/{}/final_pos".format(ENV_NAME), final_pos)
+
+# Print stats
+print("Total episodes: {} | Total time: {:.2f} sec".format(i + 1, learn_time))
 print("q_table entries != 0: {}%".format(100 * np.count_nonzero(q_table) / q_table.size))
-print("Steps (min, avg, max): {}, {}, {}".format(min(steps), mean(steps), max(steps)))
-print("Avg time: {}/step, {}/episode".format(learn_time / sum(steps), learn_time / i))
-print("Avg time converting to indices: {}/step, {}/episode".format(to_indices_time/sum(steps), to_indices_time/i))
-fig, axes = plt.subplots(nrows=3, ncols=1, figsize=(10,8))
-plt.subplots_adjust(hspace=0.3)
-axes[0].plot(ep_rewards)
-axes[0].set_xlabel('Episode')
-axes[0].set_ylabel('Total Reward')
-axes[1].plot(np.arange(100, i, 100), avg_rewards)
-axes[1].set_xlabel('Episode')
-axes[1].set_ylabel('Avg Total Reward')
-axes[2].plot(np.arange(100, i, 100), success_percent)
-axes[2].set_xlabel('Episode')
-axes[2].set_ylabel('% successful landings')
-plt.show()
+print("Steps/episode (min, avg., max): {:.2f}, {:.2f}, {:.2f}".format(min(steps), mean(steps), max(steps)))
+print("Avg. time: {:.2f} sec/step, {:.2f} sec/episode".format(learn_time / sum(steps), learn_time / (i + 1)))
