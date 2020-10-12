@@ -265,7 +265,6 @@ class LunarLander(gym.Env, EzPickle):
             self.world.DestroyBody(self.particles.pop(0))
 
     def step(self, action):
-        self.step_count += 1
 
         if self.zone_move:
             self.helipad_x1 += 0.025
@@ -370,6 +369,9 @@ class LunarLander(gym.Env, EzPickle):
         if not self.lander.awake:
             done = True
             reward = +100
+        
+        self.step_count += 1
+        
         return np.array(state, dtype=np.float32), reward, done, {}
 
     def render(self, mode='human'):
