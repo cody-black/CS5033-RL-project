@@ -27,7 +27,7 @@ NUM_EPS = 5000
 
 # Which Lunar Lander environment to run
 # Options are "LunarLander", "LunarLanderMoreRandStart", "LunarLanderMovingZone", "LunarLanderRandomZone", "LunarLanderLimitedFuel"
-ENV_NAME = "LunarLanderRandomZone"
+ENV_NAME = "LunarLander"
 
 env = getattr(lunar_lander, ENV_NAME)()
 
