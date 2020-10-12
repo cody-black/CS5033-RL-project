@@ -366,6 +366,7 @@ class LunarLander(gym.Env, EzPickle):
         if self.step_count >= 1000 or self.game_over or pos.x < 0 or pos.x > VIEWPORT_W/SCALE or self.helipad_x2 > VIEWPORT_W/SCALE:
             done = True
             reward = -100
+            self.step_count = 0
         if not self.lander.awake:
             done = True
             reward = +100
