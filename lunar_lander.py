@@ -84,6 +84,8 @@ class LunarLander(gym.Env, EzPickle):
         'video.frames_per_second' : FPS
     }
 
+    step_count = 0
+
     continuous = False
     rand_zone = False
     zone_move = False
@@ -263,6 +265,7 @@ class LunarLander(gym.Env, EzPickle):
             self.world.DestroyBody(self.particles.pop(0))
 
     def step(self, action):
+        self.step_count += 1
 
         if self.zone_move:
             self.helipad_x1 += 0.025
@@ -359,8 +362,8 @@ class LunarLander(gym.Env, EzPickle):
             reward -= s_power*0.03
 
         done = False
-        # If the lander flies off the screen to the left or right or the landing zone moves off the right side
-        if self.game_over or pos.x < 0 or pos.x > VIEWPORT_W/SCALE or self.helipad_x2 > VIEWPORT_W/SCALE:
+        # If 1000 steps have passed or the lander flies off the screen to the left or right or the landing zone moves off the right side
+        if self.step_count >= 1000 or self.game_over or pos.x < 0 or pos.x > VIEWPORT_W/SCALE or self.helipad_x2 > VIEWPORT_W/SCALE:
             done = True
             reward = -100
         if not self.lander.awake:
